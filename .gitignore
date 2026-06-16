@@ -43,3 +43,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase app configs — keep secrets out of git
+ios/Runner/GoogleService-Info.plist
+**/GoogleService-Info.plist
+**/google-services.json

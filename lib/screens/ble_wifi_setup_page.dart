@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
@@ -45,14 +46,32 @@ class _BleWifiSetupPageState extends State<BleWifiSetupPage> {
       _error = null;
     });
 
-    // Android 12+ needs scan/connect; older needs location.
-    final statuses = await [
-      Permission.bluetoothScan,
-      Permission.bluetoothConnect,
-      Permission.locationWhenInUse,
-    ].request();
-    if (statuses.values.any((s) => s.isPermanentlyDenied || s.isDenied)) {
-      setState(() => _error = 'Bluetooth & location permissions are required to find your robot.');
+    // Android 12+ needs runtime BLUETOOTH_SCAN/CONNECT (+ location on older).
+    // iOS surfaces its own Bluetooth prompt when the scan starts — don't gate here
+    // (the Android permission objects report "denied" on iOS and would false-fail).
+    if (Platform.isAndroid) {
+      final statuses = await [
+        Permission.bluetoothScan,
+        Permission.bluetoothConnect,
+        Permission.locationWhenInUse,
+      ].request();
+      if (statuses.values.any((s) => s.isPermanentlyDenied)) {
+        setState(() => _error =
+            'Bluetooth & location permission is blocked. Enable it in Settings to find your robot.');
+        return;
+      }
+    }
+
+    // Wait for the BLE adapter to power on. On iOS this also triggers the
+    // system Bluetooth permission prompt on first launch.
+    try {
+      await FlutterBluePlus.adapterState
+          .firstWhere((s) => s == BluetoothAdapterState.on)
+          .timeout(const Duration(seconds: 12));
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = 'Turn on Bluetooth, then tap Rescan.');
+      }
       return;
     }
 

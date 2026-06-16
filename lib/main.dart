@@ -3,12 +3,17 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 
 import 'constants/app_theme.dart';
-import 'screens/splash_screen.dart';
+import 'screens/ble_wifi_setup_page.dart';
 import 'services/theme_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  // Non-fatal: BLE Wi-Fi setup must work even if Firebase isn't configured.
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint('Firebase init skipped: $e');
+  }
 
   runApp(
     ChangeNotifierProvider(
@@ -36,7 +41,9 @@ class PawMeApp extends StatelessWidget {
           ? ThemeMode.dark
           : ThemeMode.light,
 
-      home: const SplashScreen(),
+      // TEMP: skip auth — launch straight into BLE Wi-Fi provisioning for bring-up.
+      // Restore `const SplashScreen()` (import screens/splash_screen.dart) for the full flow.
+      home: const BleWifiSetupPage(),
     );
 
   }
