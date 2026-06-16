@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
-import '../../wifi_guide_page.dart';
+import '../ble_wifi_setup_page.dart';
 
 class PairingModeEnabledScreen extends StatelessWidget {
   const PairingModeEnabledScreen({super.key});
@@ -75,8 +75,7 @@ class PairingModeEnabledScreen extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) =>
-                          const WifiGuidePage(robotSSID: 'ROBOT_AP'),
+                          builder: (_) => const BleWifiSetupPage(),
                         ),
                       );
                     },

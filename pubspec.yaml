@@ -20,6 +20,7 @@ dependencies:
   google_sign_in: ^6.2.0
 
   # Connectivity & Hardware
+  flutter_blue_plus: ^1.32.12
   connectivity_plus: ^7.0.0
   wifi_scan: ^0.4.1+2
   wifi_iot: ^0.3.19+2
