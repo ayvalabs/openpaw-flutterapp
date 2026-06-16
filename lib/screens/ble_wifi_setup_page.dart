@@ -7,6 +7,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../constants/app_colors.dart';
 import '../services/ble_provisioning_service.dart';
+import 'robot_control_page.dart';
 
 /// BLE-based Wi-Fi provisioning: scan for the robot, connect, send Home Wi-Fi
 /// credentials over GATT, and watch the connection status it reports back.
@@ -32,6 +33,7 @@ class _BleWifiSetupPageState extends State<BleWifiSetupPage> {
   int? _wifiStatus; // 0 idle 1 connecting 2 connected 3 failed
   String? _error;
   bool _sending = false;
+  String? _robotIp; // LAN IP reported by the robot once it's on Wi-Fi
 
   @override
   void initState() {
@@ -89,8 +91,18 @@ class _BleWifiSetupPageState extends State<BleWifiSetupPage> {
     try {
       await _ble.connect(device);
       final info = await _ble.readInfo();
-      _statusSub = _ble.statusStream().listen((s) {
-        if (mounted) setState(() => _wifiStatus = s);
+      _statusSub = _ble.statusStream().listen((s) async {
+        if (!mounted) return;
+        setState(() => _wifiStatus = s);
+        if (s == 2) {
+          // Connected: pull the robot's LAN IP from INFO ("version|mac|ip").
+          try {
+            final parts = (await _ble.readInfo()).split('|');
+            if (parts.length >= 3 && parts[2].isNotEmpty && mounted) {
+              setState(() => _robotIp = parts[2]);
+            }
+          } catch (_) {}
+        }
       });
       if (!mounted) return;
       setState(() {
@@ -258,6 +270,23 @@ class _BleWifiSetupPageState extends State<BleWifiSetupPage> {
         ),
         const SizedBox(height: 24),
         if (_wifiStatus != null) _statusBanner(theme),
+        if (_robotIp != null) ...[
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => RobotControlPage(initialIp: _robotIp),
+                ),
+              ),
+              icon: const Icon(Icons.videocam),
+              label: const Text('Open camera & controls'),
+            ),
+          ),
+        ],
         const Spacer(),
         SafeArea(
           child: SizedBox(
