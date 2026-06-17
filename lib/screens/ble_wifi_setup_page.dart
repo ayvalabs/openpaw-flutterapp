@@ -28,12 +28,16 @@ class _BleWifiSetupPageState extends State<BleWifiSetupPage> {
 
   _Phase _phase = _Phase.scanning;
   StreamSubscription<List<ScanResult>>? _scanSub;
-  StreamSubscription<int>? _statusSub;
+  StreamSubscription<({int status, int reason})>? _statusSub;
+  StreamSubscription<List<String>>? _netSub;
   List<ScanResult> _found = [];
+  List<String> _wifiNetworks = []; // SSIDs the robot scanned
   String _info = '';
   int? _wifiStatus; // 0 idle 1 connecting 2 connected 3 failed
+  int _wifiReason = 0; // firmware Wi-Fi disconnect reason (when failed)
   String? _error;
   bool _sending = false;
+  bool _sent = false; // have we pushed creds this session? (gates the status banner)
   String? _robotIp;   // LAN IP reported by the robot once it's on Wi-Fi
   String? _deviceId;  // robot MAC (no colons) → WebRTC signaling room id
 
@@ -89,14 +93,22 @@ class _BleWifiSetupPageState extends State<BleWifiSetupPage> {
     setState(() {
       _phase = _Phase.connecting;
       _error = null;
+      _sent = false;       // fresh session — don't show last attempt's status
+      _wifiStatus = null;
     });
     try {
       await _ble.connect(device);
       final info = await _ble.readInfo();
+      _netSub = _ble.scanNetworks().listen((list) {
+        if (mounted) setState(() => _wifiNetworks = list);
+      });
       _statusSub = _ble.statusStream().listen((s) async {
         if (!mounted) return;
-        setState(() => _wifiStatus = s);
-        if (s == 2) {
+        setState(() {
+          _wifiStatus = s.status;
+          _wifiReason = s.reason;
+        });
+        if (s.status == 2) {
           // Connected: pull the robot's LAN IP from INFO ("version|mac|ip").
           try {
             final parts = (await _ble.readInfo()).split('|');
@@ -129,10 +141,18 @@ class _BleWifiSetupPageState extends State<BleWifiSetupPage> {
   Future<void> _send() async {
     if (_ssid.text.trim().isEmpty) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Please enter your Wi-Fi SSID')));
+          .showSnackBar(const SnackBar(content: Text('Pick or enter your Wi-Fi network first')));
       return;
     }
-    setState(() => _sending = true);
+    if (_pass.text.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Enter the Wi-Fi password')));
+      return;
+    }
+    setState(() {
+      _sending = true;
+      _sent = true; // now the status banner is meaningful
+    });
     try {
       await _ble.provision(_ssid.text.trim(), _pass.text);
     } catch (e) {
@@ -146,6 +166,7 @@ class _BleWifiSetupPageState extends State<BleWifiSetupPage> {
   void dispose() {
     _scanSub?.cancel();
     _statusSub?.cancel();
+    _netSub?.cancel();
     _ble.stopScan();
     _ble.disconnect();
     _ssid.dispose();
@@ -246,98 +267,122 @@ class _BleWifiSetupPageState extends State<BleWifiSetupPage> {
   }
 
   Widget _buildForm(ThemeData theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 16),
-        Text('Configuration', style: theme.textTheme.displaySmall),
-        const SizedBox(height: 8),
-        Text(
-          _info.isEmpty
-              ? 'Connected. Enter your Home Wi-Fi (2.4 GHz) — the robot will join it.'
-              : 'Connected to firmware ${_info.split('|').first}. Enter your Home Wi-Fi (2.4 GHz).',
-          style: const TextStyle(color: Colors.grey),
-        ),
-        const SizedBox(height: 32),
-        TextField(
-          controller: _ssid,
-          decoration: const InputDecoration(
-            labelText: 'Home Wi-Fi SSID',
-            hintText: 'e.g. MyHomeNetwork',
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(top: 16, bottom: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Configuration', style: theme.textTheme.displaySmall),
+          const SizedBox(height: 8),
+          Text(
+            _info.isEmpty
+                ? 'Connected. Pick your Home Wi-Fi (2.4 GHz) — the robot will join it.'
+                : 'Connected to firmware ${_info.split('|').first}. Pick your Home Wi-Fi (2.4 GHz).',
+            style: const TextStyle(color: Colors.grey),
           ),
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _pass,
-          obscureText: true,
-          decoration: const InputDecoration(
-            labelText: 'Wi-Fi Password',
-            hintText: '••••••••',
-          ),
-        ),
-        const SizedBox(height: 24),
-        if (_wifiStatus != null) _statusBanner(theme),
-        if (_robotIp != null) ...[
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: ElevatedButton.icon(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => RobotControlPage(initialIp: _robotIp),
-                ),
-              ),
-              icon: const Icon(Icons.videocam),
-              label: const Text('Open camera & controls (local)'),
+          const SizedBox(height: 24),
+          _ssidField(theme),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _pass,
+            obscureText: true,
+            decoration: const InputDecoration(
+              labelText: 'Wi-Fi Password',
+              hintText: '••••••••',
             ),
           ),
-          if (_deviceId != null) ...[
-            const SizedBox(height: 8),
+          const SizedBox(height: 20),
+          if (_sent && _wifiStatus != null) ...[_statusBanner(theme), const SizedBox(height: 12)],
+          if (_robotIp != null) ...[
             SizedBox(
               width: double.infinity,
               height: 52,
-              child: OutlinedButton.icon(
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => RemoteControlPage(deviceId: _deviceId!),
-                  ),
-                ),
-                icon: const Icon(Icons.cloud),
-                label: const Text('Watch remotely (WebRTC)'),
+              child: ElevatedButton.icon(
+                onPressed: () => Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => RobotControlPage(initialIp: _robotIp))),
+                icon: const Icon(Icons.videocam),
+                label: const Text('Open camera & controls (local)'),
               ),
             ),
+            if (_deviceId != null) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => RemoteControlPage(deviceId: _deviceId!))),
+                  icon: const Icon(Icons.cloud),
+                  label: const Text('Watch remotely (WebRTC)'),
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
           ],
-        ],
-        const Spacer(),
-        SafeArea(
-          child: SizedBox(
+          SizedBox(
             width: double.infinity,
             height: 52,
             child: ElevatedButton(
               onPressed: _sending ? null : _send,
               child: _sending
                   ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                    )
+                      height: 20, width: 20,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                   : const Text('Send to Robot'),
             ),
           ),
-        ),
-        const SizedBox(height: 16),
-      ],
+        ],
+      ),
     );
+  }
+
+  /// SSID input: a text field while the robot is still scanning, then a
+  /// dropdown of the networks it found.
+  Widget _ssidField(ThemeData theme) {
+    if (_wifiNetworks.isEmpty) {
+      return TextField(
+        controller: _ssid,
+        decoration: const InputDecoration(
+          labelText: 'Home Wi-Fi SSID',
+          hintText: 'Scanning for networks…',
+          suffixIcon: Padding(
+            padding: EdgeInsets.all(12),
+            child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+          ),
+        ),
+      );
+    }
+    final selected = _wifiNetworks.contains(_ssid.text) ? _ssid.text : null;
+    return DropdownButtonFormField<String>(
+      initialValue: selected,
+      isExpanded: true,
+      decoration: const InputDecoration(labelText: 'Home Wi-Fi (2.4 GHz)'),
+      hint: const Text('Select a network'),
+      items: _wifiNetworks
+          .map((s) => DropdownMenuItem(value: s, child: Text(s, overflow: TextOverflow.ellipsis)))
+          .toList(),
+      onChanged: (v) => setState(() => _ssid.text = v ?? ''),
+    );
+  }
+
+  // Map the firmware's Wi-Fi disconnect reason to an actionable message.
+  String _failMessage(int reason) {
+    const wrongPassword = {2, 3, 15, 202, 204, 205}; // auth / 4-way handshake failures
+    const notFound = {200, 201}; // beacon timeout / no AP found
+    if (wrongPassword.contains(reason)) {
+      return 'Wrong Wi-Fi password — re-enter it and try again.';
+    }
+    if (notFound.contains(reason)) {
+      return "Couldn't find that network — make sure it's 2.4 GHz and in range.";
+    }
+    return "Couldn't connect (code $reason) — double-check the network and password.";
   }
 
   Widget _statusBanner(ThemeData theme) {
     final (label, color, icon) = switch (_wifiStatus) {
       1 => ('Robot is connecting to Wi-Fi…', AppColors.warning, Icons.wifi_find),
       2 => ('Robot connected to Wi-Fi!', AppColors.success, Icons.wifi),
-      3 => ('Robot failed to connect — check the password.', AppColors.error, Icons.wifi_off),
+      3 => (_failMessage(_wifiReason), AppColors.error, Icons.wifi_off),
       _ => ('Waiting for credentials…', AppColors.textSecondary, Icons.hourglass_empty),
     };
     return Container(

@@ -15,6 +15,7 @@ class BleProvisioningService {
   static final Guid credUuid = Guid('006e4001-1212-efde-1523-785feabcd123');
   static final Guid statusUuid = Guid('006e4002-1212-efde-1523-785feabcd123');
   static final Guid infoUuid = Guid('006e4003-1212-efde-1523-785feabcd123');
+  static final Guid networksUuid = Guid('006e4004-1212-efde-1523-785feabcd123');
 
   /// Device advert name prefix (OpenPaw-XXYY).
   static const String namePrefix = 'OpenPaw';
@@ -23,6 +24,7 @@ class BleProvisioningService {
   BluetoothCharacteristic? _cred;
   BluetoothCharacteristic? _status;
   BluetoothCharacteristic? _info;
+  BluetoothCharacteristic? _networks;
 
   BluetoothDevice? get device => _device;
 
@@ -58,6 +60,8 @@ class BleProvisioningService {
         _status = c;
       } else if (c.uuid == infoUuid) {
         _info = c;
+      } else if (c.uuid == networksUuid) {
+        _networks = c;
       }
     }
     if (_cred == null || _status == null) {
@@ -72,12 +76,38 @@ class BleProvisioningService {
     return utf8.decode(value);
   }
 
-  /// Subscribe to STATUS notifications. Emits the raw status byte.
-  Stream<int> statusStream() async* {
+  /// Subscribe to STATUS notifications. Emits (status, reason): status is
+  /// 0 idle / 1 connecting / 2 connected / 3 failed; reason is the firmware's
+  /// Wi-Fi disconnect reason code (only meaningful when status == 3).
+  Stream<({int status, int reason})> statusStream() async* {
     await _status!.setNotifyValue(true);
     yield* _status!.lastValueStream
         .where((v) => v.isNotEmpty)
-        .map((v) => v.first);
+        .map((v) => (status: v[0], reason: v.length > 1 ? v[1] : 0));
+  }
+
+  /// Stream of SSIDs the robot can see. The robot scans on connect and notifies
+  /// when ready, so this emits `[]` first, then the populated list (~3s later).
+  Stream<List<String>> scanNetworks() async* {
+    if (_networks == null) {
+      yield <String>[];
+      return;
+    }
+    await _networks!.setNotifyValue(true);
+    _networks!.read(); // kick a read; result + notifications arrive via the stream
+    yield* _networks!.lastValueStream
+        .where((v) => v.isNotEmpty)
+        .map(_parseNetworks);
+  }
+
+  List<String> _parseNetworks(List<int> value) {
+    try {
+      final decoded = jsonDecode(utf8.decode(value));
+      if (decoded is List) {
+        return decoded.whereType<String>().toList();
+      }
+    } catch (_) {/* ignore */}
+    return <String>[];
   }
 
   /// Write Wi-Fi credentials to CRED; firmware stores them and connects.
@@ -91,7 +121,7 @@ class BleProvisioningService {
       await _device?.disconnect();
     } finally {
       _device = null;
-      _cred = _status = _info = null;
+      _cred = _status = _info = _networks = null;
     }
   }
 }
