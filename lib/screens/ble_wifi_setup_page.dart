@@ -38,6 +38,7 @@ class _BleWifiSetupPageState extends State<BleWifiSetupPage> {
   String? _error;
   bool _sending = false;
   bool _sent = false; // have we pushed creds this session? (gates the status banner)
+  bool _obscurePass = true; // password show/hide toggle
   String? _robotIp;   // LAN IP reported by the robot once it's on Wi-Fi
   String? _deviceId;  // robot MAC (no colons) → WebRTC signaling room id
 
@@ -285,10 +286,18 @@ class _BleWifiSetupPageState extends State<BleWifiSetupPage> {
           const SizedBox(height: 16),
           TextField(
             controller: _pass,
-            obscureText: true,
-            decoration: const InputDecoration(
+            obscureText: _obscurePass,
+            enableInteractiveSelection: true, // allow long-press paste
+            autocorrect: false,
+            enableSuggestions: false,
+            decoration: InputDecoration(
               labelText: 'Wi-Fi Password',
               hintText: '••••••••',
+              suffixIcon: IconButton(
+                icon: Icon(_obscurePass ? Icons.visibility_off : Icons.visibility),
+                tooltip: _obscurePass ? 'Show password' : 'Hide password',
+                onPressed: () => setState(() => _obscurePass = !_obscurePass),
+              ),
             ),
           ),
           const SizedBox(height: 20),
