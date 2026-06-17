@@ -41,6 +41,9 @@ class _RobotControlPageState extends State<RobotControlPage> {
 
   /* Status polling */
   Timer? _statusTimer;
+  /* Motor heartbeat — re-sends the held direction so the robot's 2s safety
+     timeout doesn't cut the motors when the joystick is held steady. */
+  Timer? _motorTimer;
 
   /* Motor smoothing */
     double _driveVal = 0;
@@ -61,6 +64,7 @@ class _RobotControlPageState extends State<RobotControlPage> {
   @override
   void dispose() {
     _statusTimer?.cancel();
+    _motorTimer?.cancel();
     _recordTimer?.cancel();
     _ffmpegSession?.cancel();
     super.dispose();
@@ -116,6 +120,11 @@ class _RobotControlPageState extends State<RobotControlPage> {
   void _startStatusPolling() {
     _statusTimer = Timer.periodic(const Duration(milliseconds: 500), (_) => _fetchStatus());
     _fetchStatus();
+    // Re-send the current motor command while a direction is held (the joystick
+    // only fires on movement, so without this the 2s safety timeout stops it).
+    _motorTimer = Timer.periodic(const Duration(milliseconds: 400), (_) {
+      if (_driveVal != 0 || _turnVal != 0) _sendMotor(_driveVal, _turnVal);
+    });
   }
 
   Future<void> _fetchStatus() async {
