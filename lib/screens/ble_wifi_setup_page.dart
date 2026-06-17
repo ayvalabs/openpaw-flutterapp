@@ -8,6 +8,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../constants/app_colors.dart';
 import '../services/ble_provisioning_service.dart';
 import 'robot_control_page.dart';
+import 'remote_control_page.dart';
 
 /// BLE-based Wi-Fi provisioning: scan for the robot, connect, send Home Wi-Fi
 /// credentials over GATT, and watch the connection status it reports back.
@@ -33,7 +34,8 @@ class _BleWifiSetupPageState extends State<BleWifiSetupPage> {
   int? _wifiStatus; // 0 idle 1 connecting 2 connected 3 failed
   String? _error;
   bool _sending = false;
-  String? _robotIp; // LAN IP reported by the robot once it's on Wi-Fi
+  String? _robotIp;   // LAN IP reported by the robot once it's on Wi-Fi
+  String? _deviceId;  // robot MAC (no colons) → WebRTC signaling room id
 
   @override
   void initState() {
@@ -98,8 +100,13 @@ class _BleWifiSetupPageState extends State<BleWifiSetupPage> {
           // Connected: pull the robot's LAN IP from INFO ("version|mac|ip").
           try {
             final parts = (await _ble.readInfo()).split('|');
-            if (parts.length >= 3 && parts[2].isNotEmpty && mounted) {
-              setState(() => _robotIp = parts[2]);
+            if (mounted) {
+              setState(() {
+                if (parts.length >= 3 && parts[2].isNotEmpty) _robotIp = parts[2];
+                if (parts.length >= 2 && parts[1].isNotEmpty) {
+                  _deviceId = parts[1].replaceAll(':', '').toLowerCase();
+                }
+              });
             }
           } catch (_) {}
         }
@@ -283,9 +290,26 @@ class _BleWifiSetupPageState extends State<BleWifiSetupPage> {
                 ),
               ),
               icon: const Icon(Icons.videocam),
-              label: const Text('Open camera & controls'),
+              label: const Text('Open camera & controls (local)'),
             ),
           ),
+          if (_deviceId != null) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => RemoteControlPage(deviceId: _deviceId!),
+                  ),
+                ),
+                icon: const Icon(Icons.cloud),
+                label: const Text('Watch remotely (WebRTC)'),
+              ),
+            ),
+          ],
         ],
         const Spacer(),
         SafeArea(

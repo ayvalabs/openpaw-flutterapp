@@ -6,6 +6,10 @@
 	<string>PawMe uses Bluetooth to find your robot and send it your Wi-Fi details.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>PawMe uses Bluetooth to connect to and set up your robot.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>PawMe streams live video from your robot's camera.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>PawMe uses audio for two-way communication with your robot.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
