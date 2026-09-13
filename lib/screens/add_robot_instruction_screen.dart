@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
+import '../widgets/futuristic_ui.dart';
 import 'add_robot/enable_pairing_mode_screen.dart';
 
 class AddRobotInstructionScreen extends StatelessWidget {
@@ -7,105 +8,87 @@ class AddRobotInstructionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
-      backgroundColor: AppColors.primary, // brand header stays
+      backgroundColor: AppColors.backgroundDark,
       body: SafeArea(
         child: Column(
           children: [
-            const SizedBox(height: 60),
-
-            // ================= TOP CONTENT =================
+            const SizedBox(height: 40),
+            // ─── BACK BUTTON ──────────────────────────
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back,
+                        color: AppColors.textPrimary),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            // ─── TOP CONTENT ──────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
+                children: [
+                  const CyberText(
                     'Now we will add\na new robot',
                     style: TextStyle(
-                      color: Colors.white,
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
                       height: 1.2,
                     ),
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
                   Text(
                     'Follow a few simple steps to connect your robot to PawMe.',
                     style: TextStyle(
-                      color: Colors.white70,
+                      color: AppColors.textSecondary,
                       fontSize: 16,
                     ),
                   ),
                 ],
               ),
             ),
-
             const Spacer(),
-
-            // ================= BOTTOM CARD =================
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(24, 32, 24, 40),
-              decoration: BoxDecoration(
-                color: theme.cardColor,
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(28),
-                ),
-
-                // ✅ visible in light mode
-                border: theme.brightness == Brightness.light
-                    ? Border.all(
-                  color: AppColors.divider.withOpacity(0.6),
-                )
-                    : null,
-              ),
-              child: Column(
+            // ─── BOTTOM CARD ──────────────────────────
+                        GlassCard(
+                          padding: const EdgeInsets.fromLTRB(24, 32, 24, 40),
+                          borderRadius: 28,
+                          child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'What you’ll need',
-                    style: theme.textTheme.titleMedium?.copyWith(
+                  const Text(
+                    'What you\'ll need',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 16),
-
                   _bulletItem(context, 'Your robot powered on'),
                   _bulletItem(context, 'Your home Wi-Fi credentials'),
                   _bulletItem(context, 'Robot nearby'),
-
-                  const SizedBox(height: 32),
-
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                            const EnablePairingModeScreen(),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                  const SizedBox(height: 28),
+                  NeonButton(
+                    label: 'Continue',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        PageRouteBuilder(
+                          pageBuilder: (_, __, ___) =>
+                              const EnablePairingModeScreen(),
+                          transitionsBuilder: (_, a, __, child) =>
+                              FadeTransition(opacity: a, child: child),
+                          transitionDuration:
+                              const Duration(milliseconds: 400),
                         ),
-                      ),
-                      child: const Text(
-                        'Continue',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -116,25 +99,32 @@ class AddRobotInstructionScreen extends StatelessWidget {
     );
   }
 
-  // ================= BULLET ITEM =================
   static Widget _bulletItem(BuildContext context, String text) {
-    final theme = Theme.of(context);
-
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            Icons.check_circle,
-            size: 18,
-            color: AppColors.primary,
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.accentGreen.withOpacity(0.15),
+            ),
+            child: const Icon(
+              Icons.check_circle,
+              size: 16,
+              color: AppColors.accentGreen,
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               text,
-              style: theme.textTheme.bodyMedium,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 14,
+              ),
             ),
           ),
         ],

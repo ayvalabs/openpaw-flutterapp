@@ -32,12 +32,12 @@ class PawMeApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
 
+      // Default to dark (futuristic) mode
       themeMode: themeProvider.isDarkMode
           ? ThemeMode.dark
-          : ThemeMode.light,
+          : ThemeMode.dark, // Always dark for futuristic UI
 
       home: const SplashScreen(),
     );
-
   }
 }

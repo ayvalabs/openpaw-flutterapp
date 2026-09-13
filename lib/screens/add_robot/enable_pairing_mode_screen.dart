@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
+import '../../widgets/futuristic_ui.dart';
 import 'press_pairing_button_screen.dart';
 
 class EnablePairingModeScreen extends StatelessWidget {
@@ -7,18 +8,13 @@ class EnablePairingModeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: AppColors.backgroundDark,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back,
-            color: theme.iconTheme.color,
-          ),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -28,58 +24,48 @@ class EnablePairingModeScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 20),
-
-            Text(
-              'Enable Pairing Mode',
-              style: theme.textTheme.displaySmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Follow the instructions to enable pairing mode on your robot',
-              style: theme.textTheme.bodyLarge,
-            ),
-
-            const SizedBox(height: 40),
-
-            _instruction(context, 'Make sure your robot is powered on'),
-            _instruction(context, 'Keep the robot nearby'),
-            _instruction(context, 'Do not press any buttons yet'),
-
+            const CyberText(
+                          'Enable Pairing Mode',
+                          style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Follow the instructions to enable pairing mode on your robot',
+                          style: TextStyle(color: AppColors.textSecondary, fontSize: 15),
+                        ),
+                        const SizedBox(height: 40),
+                        GlassCard(
+                          padding: EdgeInsets.all(20),
+                          child: Column(
+                            children: [
+                              _step(context, 'Make sure your robot is powered on', Icons.power_settings_new),
+                              _step(context, 'Keep the robot nearby', Icons.near_me),
+                              _step(context, 'Do not press any buttons yet', Icons.touch_app),
+                            ],
+                          ),
+                        ),
             const Spacer(),
-
             SafeArea(
               minimum: const EdgeInsets.only(bottom: 16),
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 16),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                          const PressPairingButtonScreen(),
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                child: NeonButton(
+                  label: 'Continue',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      PageRouteBuilder(
+                        pageBuilder: (_, __, ___) =>
+                            const PressPairingButtonScreen(),
+                        transitionsBuilder: (_, a, __, child) =>
+                            FadeTransition(opacity: a, child: child),
+                        transitionDuration: const Duration(milliseconds: 400),
                       ),
-                    ),
-                    child: const Text(
-                      'Continue',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
               ),
             ),
@@ -89,23 +75,24 @@ class EnablePairingModeScreen extends StatelessWidget {
     );
   }
 
-  Widget _instruction(BuildContext context, String text) {
-    final theme = Theme.of(context);
-
+  Widget _step(BuildContext context, String text, IconData icon) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 16),
       child: Row(
         children: [
-          const Icon(
-            Icons.circle,
-            size: 6,
-            color: AppColors.primary,
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: AppColors.accent, size: 20),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 14),
           Expanded(
             child: Text(
               text,
-              style: theme.textTheme.bodyMedium,
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
             ),
           ),
         ],
